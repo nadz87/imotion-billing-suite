@@ -15,9 +15,9 @@ const DEFAULT_CLIENTS = [
 ];
 
 const DEFAULT_BRAND_SETTINGS: BrandingSettings = {
-  logoUrl: "", // Defaults to our customized placeholder icon
-  primaryColor: "#0f172a", // Slate 900 (Elegant Swiss minimal default)
-  secondaryColor: "#3b82f6", // Royal Blue accent
+  logoUrl: "",
+  primaryColor: "#0f172a",
+  secondaryColor: "#3b82f6",
   fontFamily: "Rubik, sans-serif",
   companyName: "iMotion Production",
   companyAddress: "Level 14, Menara MSC Cyberport, No. 5 Jalan Bukit Meldrum, 80300 Johor Bahru, Johor, Malaysia",
@@ -32,7 +32,6 @@ const DEFAULT_BRAND_SETTINGS: BrandingSettings = {
   designBoardLink: "https://imotion.my"
 };
 
-// Helper to simulate slight network latency for local storage to mimic cloud fetching
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
@@ -51,7 +50,6 @@ export async function getBrandSettings(): Promise<BrandingSettings> {
     }
   }
 
-  // Fallback / Local Storage
   await delay(200);
   const stored = localStorage.getItem(LOCAL_STORAGE_BRAND_KEY);
   if (stored) {
@@ -72,7 +70,6 @@ export async function saveBrandSettings(settings: BrandingSettings): Promise<voi
     }
   }
 
-  // Fallback / Local Storage
   await delay(300);
   localStorage.setItem(LOCAL_STORAGE_BRAND_KEY, JSON.stringify(settings));
 }
@@ -85,8 +82,8 @@ export async function getInvoices(): Promise<InvoiceData[]> {
     try {
       const querySnapshot = await getDocs(collection(db, "invoices"));
       const list: InvoiceData[] = [];
-      querySnapshot.forEach((doc) => {
-        list.push({ id: doc.id, ...doc.data() } as InvoiceData);
+      querySnapshot.forEach((docSnap) => {
+        list.push({ id: docSnap.id, ...docSnap.data() } as InvoiceData);
       });
       return list.sort((a, b) => b.date.localeCompare(a.date));
     } catch (err) {
@@ -94,7 +91,6 @@ export async function getInvoices(): Promise<InvoiceData[]> {
     }
   }
 
-  // Fallback / Local Storage
   await delay(200);
   const stored = localStorage.getItem(LOCAL_STORAGE_INVOICES_KEY);
   if (stored) {
@@ -107,31 +103,35 @@ export async function getInvoices(): Promise<InvoiceData[]> {
 export async function saveInvoice(invoice: InvoiceData): Promise<InvoiceData> {
   if (isFirebaseConfigured && db) {
     try {
-      const docRef = await addDoc(collection(db, "invoices"), invoice);
-      return { ...invoice, id: docRef.id };
+      const { id, ...invoiceData } = invoice;
+      const docRef = await addDoc(collection(db, "invoices"), invoiceData);
+
+      return {
+        ...invoiceData,
+        id: docRef.id,
+      } as InvoiceData;
     } catch (err) {
       console.error("Firestore Error saving invoice:", err);
       throw err;
     }
   }
 
-  // Fallback / Local Storage
   await delay(400);
   const stored = localStorage.getItem(LOCAL_STORAGE_INVOICES_KEY);
   const currentInvoices: InvoiceData[] = stored ? JSON.parse(stored) : [];
-  
+
   const newInvoice = {
     ...invoice,
     id: invoice.id || `local_${Date.now()}`
   };
-  
+
   const existingIdx = currentInvoices.findIndex(inv => inv.id === newInvoice.id);
   if (existingIdx >= 0) {
     currentInvoices[existingIdx] = newInvoice;
   } else {
     currentInvoices.push(newInvoice);
   }
-  
+
   localStorage.setItem(LOCAL_STORAGE_INVOICES_KEY, JSON.stringify(currentInvoices));
   return newInvoice;
 }
@@ -144,8 +144,8 @@ export async function getClients(): Promise<{ id: string; name: string; address:
     try {
       const querySnapshot = await getDocs(collection(db, "clients"));
       const list: any[] = [];
-      querySnapshot.forEach((doc) => {
-        list.push({ id: doc.id, ...doc.data() });
+      querySnapshot.forEach((docSnap) => {
+        list.push({ id: docSnap.id, ...docSnap.data() });
       });
       if (list.length > 0) return list;
     } catch (err) {
@@ -153,17 +153,14 @@ export async function getClients(): Promise<{ id: string; name: string; address:
     }
   }
 
-  // Fallback: Default client list + clients harvested dynamically from saved invoices
   await delay(100);
   const storedInvoices = localStorage.getItem(LOCAL_STORAGE_INVOICES_KEY);
   const invoices: InvoiceData[] = storedInvoices ? JSON.parse(storedInvoices) : [];
-  
+
   const clientMap = new Map<string, { id: string; name: string; address: string; contact?: string; phone?: string; website?: string; contactPerson?: string }>();
-  
-  // Seed defaults
+
   DEFAULT_CLIENTS.forEach(c => clientMap.set(c.name.toLowerCase(), c));
-  
-  // Collect from invoices
+
   invoices.forEach(inv => {
     if (inv.clientName && inv.clientName.trim().length > 0) {
       const clientKey = inv.clientName.trim().toLowerCase();
