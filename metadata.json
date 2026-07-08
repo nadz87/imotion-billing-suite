@@ -1,0 +1,6 @@
+{
+  "name": "iMotion Production AI Invoice & Quotation App",
+  "description": "An AI-powered invoicing and quotation web application for iMotion Production, featuring natural language document generation, multimodal receipt OCR scanning, and premium branded templates.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
